@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Any odin version after dev-2025, compiled using dev-2025-12:6130b87b
+Any odin version after dev-2025, compiled using version dev-2026-01:393fec2f6
 
 ## Reporting a Vulnerability
 
