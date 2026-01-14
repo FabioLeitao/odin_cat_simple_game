@@ -30,31 +30,31 @@ update_animation :: proc(a: ^Animation) {
 }
 
 draw_animation :: proc(a: Animation, pos: rl.Vector2, flip: bool) {
-   player_run_width := f32(a.texture.width)   // Calcula e arruma a escala do personagem
-   player_run_height := f32(a.texture.height) // Calcula e arruma a escala do personagem
+   width := f32(a.texture.width)   // Calcula e arruma a escala do personagem
+   height := f32(a.texture.height) // Calcula e arruma a escala do personagem
 
-   draw_player_source := rl.Rectangle {            // Posiciona o personagem
-       x = f32(a.current_frame) * player_run_width / f32(a.num_frames),  // Anima o personagem substituindo pelo frame do png
+   source := rl.Rectangle {            // Posiciona o personagem
+       x = f32(a.current_frame) * width / f32(a.num_frames),  // Anima o personagem substituindo pelo frame do png
        y = 0,
-       width = player_run_width / f32(a.num_frames),
-       height = player_run_height,
+       width = width / f32(a.num_frames),
+       height = height,
    }
 
    if flip {                                        // Testa se tem de inverter o frame do personagem
-       draw_player_source.width = -draw_player_source.width    // Espelha o frame do personagem desenhando invertido
+       source.width = -source.width    // Espelha o frame do personagem desenhando invertido
    }
 
-   draw_player_dest := rl.Rectangle {              // Anima o personagem com os quadros do png
+   dest := rl.Rectangle {              // Anima o personagem com os quadros do png
        x = pos.x,
        y = pos.y,
-       width = player_run_width * 4 / f32(a.num_frames),
-       height = player_run_height * 4              // Ajusta a escala do personagem
+       width = width * 4 / f32(a.num_frames),
+       height = height * 4              // Ajusta a escala do personagem
    }
 
 //   rl.DrawRectangleV(pos, {64, 64}, rl.GREEN)  // Espaço do personagem como um simples quadrado verde pleno
 //   rl.DrawTextureEx(a.texture, pos, 0, 4, rl.WHITE)  // Desenha o png do personagem (estranho e super pequeno)
-//   rl.DrawTextureRec(a.texture, draw_player_source, pos, rl.WHITE)  // Desenha o png do personagem (estranho)
-   rl.DrawTexturePro(a.texture, draw_player_source, draw_player_dest, 0, 0, rl.WHITE)  // Desenha um frame personagem
+//   rl.DrawTextureRec(a.texture, source, pos, rl.WHITE)  // Desenha o png do personagem (estranho)
+   rl.DrawTexturePro(a.texture, source, dest, 0, 0, rl.WHITE)  // Desenha um frame personagem
 }
 
 main :: proc() {
