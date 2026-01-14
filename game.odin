@@ -16,6 +16,47 @@ Animation :: struct {                               // Arruma as variaveis do ob
     name: Animation_Name,
 }
 
+update_animation :: proc(a: ^Animation) {
+    a.frame_timer += rl.GetFrameTime()              // Calcula do frame da animação do personagem
+
+    if a.frame_timer > a.frame_length {
+       a.current_frame += 1
+       a.frame_timer = 0
+
+       if a.current_frame == a.num_frames {
+           a.current_frame = 0
+       }
+   }
+}
+
+draw_animation :: proc(a: Animation, pos: rl.Vector2, flip: bool) {
+   player_run_width := f32(a.texture.width)   // Calcula e arruma a escala do personagem
+   player_run_height := f32(a.texture.height) // Calcula e arruma a escala do personagem
+
+   draw_player_source := rl.Rectangle {            // Posiciona o personagem
+       x = f32(a.current_frame) * player_run_width / f32(a.num_frames),  // Anima o personagem substituindo pelo frame do png
+       y = 0,
+       width = player_run_width / f32(a.num_frames),
+       height = player_run_height,
+   }
+
+   if flip {                                        // Testa se tem de inverter o frame do personagem
+       draw_player_source.width = -draw_player_source.width    // Espelha o frame do personagem desenhando invertido
+   }
+
+   draw_player_dest := rl.Rectangle {              // Anima o personagem com os quadros do png
+       x = pos.x,
+       y = pos.y,
+       width = player_run_width * 4 / f32(a.num_frames),
+       height = player_run_height * 4              // Ajusta a escala do personagem
+   }
+
+//   rl.DrawRectangleV(pos, {64, 64}, rl.GREEN)  // Espaço do personagem como um simples quadrado verde pleno
+//   rl.DrawTextureEx(a.texture, pos, 0, 4, rl.WHITE)  // Desenha o png do personagem (estranho e super pequeno)
+//   rl.DrawTextureRec(a.texture, draw_player_source, pos, rl.WHITE)  // Desenha o png do personagem (estranho)
+   rl.DrawTexturePro(a.texture, draw_player_source, draw_player_dest, 0, 0, rl.WHITE)  // Desenha um frame personagem
+}
+
 main :: proc() {
     rl.InitWindow(1280, 720, "My First Game")       // Cria tela 720p (HD)
     player_pos := rl.Vector2 { 640, 320 }
@@ -89,43 +130,10 @@ main :: proc() {
             player_shinobi = true
         }
 
-        player_run_width := f32(current_anim.texture.width)   // Calcula e arruma a escala do personagem
-        player_run_height := f32(current_anim.texture.height) // Calcula e arruma a escala do personagem
+        update_animation(&current_anim)                 // chama function da animação passando ponteiro pra posição do frame
 
-        current_anim.frame_timer += rl.GetFrameTime()     // Calcula do frame da animação do personagem
+        draw_animation(current_anim, player_pos, player_flip) // chama function de desenhar passando o quadro do frame, posicao do personagem e se está invertido
 
-        if current_anim.frame_timer > current_anim.frame_length {
-            current_anim.current_frame += 1
-            current_anim.frame_timer = 0
-
-            if current_anim.current_frame == current_anim.num_frames {
-                current_anim.current_frame = 0
-            }
-        }
-
-        draw_player_source := rl.Rectangle {            // Posiciona o personagem
-//            x = 0,
-            x = f32(current_anim.current_frame) * player_run_width / f32(current_anim.num_frames),  // Anima o personagem substituindo pelo frame do png
-            y = 0,
-            width = player_run_width / f32(current_anim.num_frames),
-            height = player_run_height,
-        }
-
-        if player_flip {                                // Testa se tem de inverter o frame do personagem
-            draw_player_source.width = -draw_player_source.width    // Espelha o frame do personagem desenhando invertido
-        }
-
-        draw_player_dest := rl.Rectangle {              // Anima o personagem com os quadros do png
-            x = player_pos.x,
-            y = player_pos.y,
-            width = player_run_width * 4 / f32(current_anim.num_frames),
-            height = player_run_height * 4              // Ajusta a escala do personagem
-        }
-
-//        rl.DrawRectangleV(player_pos, {64, 64}, rl.GREEN)  // Espaço do personagem como um simples quadrado verde pleno
-//        rl.DrawTextureEx(current_anim.texture, player_pos, 0, 4, rl.WHITE)  // Desenha o png do personagem (estranho e super pequeno)
-//        rl.DrawTextureRec(current_anim.texture, draw_player_source, player_pos, rl.WHITE)  // Desenha o png do personagem (estranho)
-        rl.DrawTexturePro(current_anim.texture, draw_player_source, draw_player_dest, 0, 0, rl.WHITE)  // Desenha um frame personagem
         rl.EndDrawing()
     }
 
