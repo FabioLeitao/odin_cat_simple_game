@@ -30,10 +30,10 @@ update_animation :: proc(a: ^Animation) {
 }
 
 draw_animation :: proc(a: Animation, pos: rl.Vector2, flip: bool) {
-   width := f32(a.texture.width)   // Calcula e arruma a escala do personagem
-   height := f32(a.texture.height) // Calcula e arruma a escala do personagem
+   width := f32(a.texture.width)        // Calcula e arruma a escala do personagem
+   height := f32(a.texture.height)      // Calcula e arruma a escala do personagem
 
-   source := rl.Rectangle {            // Posiciona o personagem
+   source := rl.Rectangle {             // Posiciona o personagem
        x = f32(a.current_frame) * width / f32(a.num_frames),  // Anima o personagem substituindo pelo frame do png
        y = 0,
        width = width / f32(a.num_frames),
@@ -41,25 +41,27 @@ draw_animation :: proc(a: Animation, pos: rl.Vector2, flip: bool) {
    }
 
    if flip {                                        // Testa se tem de inverter o frame do personagem
-       source.width = -source.width    // Espelha o frame do personagem desenhando invertido
+       source.width = -source.width     // Espelha o frame do personagem desenhando invertido
    }
 
-   dest := rl.Rectangle {              // Anima o personagem com os quadros do png
+   dest := rl.Rectangle {               // Anima o personagem com os quadros do png
        x = pos.x,
        y = pos.y,
-       width = width * 4 / f32(a.num_frames),
-       height = height * 4              // Ajusta a escala do personagem
+       width = width / f32(a.num_frames),
+       height = height                  // Ajusta a escala do personagem
    }
 
-//   rl.DrawRectangleV(pos, {64, 64}, rl.GREEN)  // Espaço do personagem como um simples quadrado verde pleno
-//   rl.DrawTextureEx(a.texture, pos, 0, 4, rl.WHITE)  // Desenha o png do personagem (estranho e super pequeno)
-//   rl.DrawTextureRec(a.texture, source, pos, rl.WHITE)  // Desenha o png do personagem (estranho)
-   rl.DrawTexturePro(a.texture, source, dest, 0, 0, rl.WHITE)  // Desenha um frame personagem
+   rl.DrawTexturePro(a.texture, source, dest, {dest.width/2, dest.height}, 0, rl.WHITE)  // Desenha um frame do personagem na raiz
 }
+
+PixelWindowHeight :: 180
 
 main :: proc() {
     rl.InitWindow(1280, 720, "My First Game")       // Cria tela 720p (HD)
-    player_pos := rl.Vector2 { 640, 320 }
+    rl.SetWindowPosition(200,200)
+    rl.SetWindowState({.WINDOW_RESIZABLE})
+    rl.SetTargetFPS(500)
+    player_pos: rl.Vector2 
     player_vel: rl.Vector2
     player_grounded: bool
     player_shinobi: bool
@@ -81,14 +83,21 @@ main :: proc() {
 
     current_anim := player_idle
 
+    platforms := []rl.Rectangle {
+        {-20, 20, 96, 16},
+        {90, -10, 96, 16},
+        {100, -50, 96, 16},
+    }
+
+    platform_texture := rl.LoadTexture("platform.png")
+
     for !rl.WindowShouldClose() {                   // Roda o loop enquanto não pedir pra fechar a janela
         rl.BeginDrawing()
-//        rl.ClearBackground(rl.BLUE)               // Pinta o fundo de azul pleno
         rl.ClearBackground({110, 184, 168, 255})    // Pinta o fundo de ciano
 
         if rl.IsKeyDown(.LEFT) {                    // Move pra esquerda
             player_flip = true                      // Inverte o frame do personagem
-            player_vel.x = -400                     // 400 pixels por segundo
+            player_vel.x = -100                     // 100 pixels por segundo
 
             if current_anim.name != .Run {
                 current_anim = player_run
@@ -96,7 +105,7 @@ main :: proc() {
 
         } else if rl.IsKeyDown(.RIGHT) {            // Move pra direita
             player_flip = false                     // Normaliza o frame do personagem
-            player_vel.x = 400                      // 400 pixels por segundo
+            player_vel.x = 100                      // 100 pixels por segundo
 
             if current_anim.name != .Run {
                 current_anim = player_run
@@ -110,29 +119,55 @@ main :: proc() {
 
         }
 
-        player_vel.y += 2000 * rl.GetFrameTime()    // Ativa a gravidade, o chão será o limite da tela
+        player_vel.y += 1000 * rl.GetFrameTime()    // Ativa a gravidade, o chão será o limite da tela
 
         if player_grounded && rl.IsKeyPressed(.SPACE) { // Pula
-            player_vel.y = -600                         // 600 pixels por segundo
-            player_grounded = false
+            player_vel.y = -300                         // 300 pixels por segundo
+//            player_shinobi = true
         }
 
-        if !player_grounded && player_shinobi && rl.IsKeyPressedRepeat(.SPACE) {  // Pulo duplo como ninja
-            player_vel.y = -1000                        // 1000 pixles por segundo pra ir bem mais rápido
-            player_shinobi = false
-        }
+//        if player_shinobi && rl.IsKeyPressedRepeat(.SPACE) {  // Pulo duplo como ninja
+//            player_vel.y = -1000                        // 1000 pixles por segundo pra ir bem mais rápido
+//        }
 
         player_pos += player_vel * rl.GetFrameTime()
 
-        if player_pos.y > f32(rl.GetScreenHeight()) - 64 {
-            player_pos.y = f32(rl.GetScreenHeight()) - 64
-            player_grounded = true
-            player_shinobi = true
+        player_feet_collider := rl.Rectangle {
+            player_pos.x - 4,
+            player_pos.y - 4,
+            8,
+            4,
+        }
+
+        player_grounded = false
+        player_shinobi = false
+        
+        for platform in platforms {
+            if rl.CheckCollisionRecs(player_feet_collider, platform) && player_vel.y > 0 {
+                player_vel.y = 0
+                player_pos.y = platform.y
+                player_grounded = true
+//              player_shinobi = true
+            }
         }
 
         update_animation(&current_anim)                 // chama function da animação passando ponteiro pra posição do frame
 
+        screen_height := f32(rl.GetScreenHeight())
+
+        camera := rl.Camera2D {
+            zoom = screen_height/PixelWindowHeight,
+            offset = {f32(rl.GetScreenWidth()/2), f32(rl.GetScreenHeight()/2)},
+            target = player_pos,
+        }
+
+        rl.BeginMode2D(camera)
         draw_animation(current_anim, player_pos, player_flip) // chama function de desenhar passando o quadro do frame, posicao do personagem e se está invertido
+//        rl.DrawRectangleRec(player_feet_collider, {0, 255, 0, 100})   // Descomentar para debugar se necessario
+        for platform in platforms {
+            rl.DrawTextureV(platform_texture, {platform.x, platform.y}, rl.WHITE)
+        }
+        rl.EndMode2D()
 
         rl.EndDrawing()
     }
