@@ -242,5 +242,8 @@ main :: proc() {
 
     free_all(context.temp_allocator)
     delete(level.platforms)                             // apaga o array de plataformas para evitar o memory leak
-}
 
+    rl.UnloadTexture(platform_texture)
+    rl.UnloadTexture(player_run.texture)
+    rl.UnloadTexture(player_idle.texture)
+}
