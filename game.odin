@@ -1,6 +1,11 @@
+#+feature dynamic-literals      // necessario para permitir dynamic allocators, com risco de memory leak
 package game
 
 import rl "vendor:raylib"
+import "core:mem"               // necessario para previnir memory leak rastreando uso de allocators pra devolver pro OS
+import "core:fmt"               // necessario para formatar strings do debug de memory allocator
+import "core:encoding/json"     // necessario pra exportar o nivel como json
+import "core:os"                // necessario pra interagir com os, como escrever o arquivo json de nivel
 
 Animation_Name :: enum {
     Idle,
@@ -56,7 +61,32 @@ draw_animation :: proc(a: Animation, pos: rl.Vector2, flip: bool) {
 
 PixelWindowHeight :: 180
 
+Level :: struct {
+    platforms: [dynamic]rl.Vector2
+}
+
+platform_collider :: proc(pos: rl.Vector2) -> rl.Rectangle {
+    return {
+        pos.x, pos.y,
+        96, 16
+    }
+}
+
 main :: proc() {
+    track: mem.Tracking_Allocator                   // rastrando momory allocators pra previnir memory leak
+    mem.tracking_allocator_init(&track, context.allocator)  // inicializando o default
+    context.allocator = mem.tracking_allocator(&track)
+
+    defer { // força o proximo bloco de codigo {} a rodar depois que terminar o main :: proc() {}, ou seja, qndo for terminar o programa
+        for _, entry in track.allocation_map {
+            fmt.eprintf("%v leaked %v bytes\n", entry.location, entry.size)  // loga pra debug onde e quanto houve memory leak
+        }
+        for entry in track.bad_free_array {
+            fmt.eprintf("%v bad free\n", entry.location)  // loga pra debug em qual array houve memory leak sem liberar de qq array
+        }
+        mem.tracking_allocator_destroy(&track)     // destroy o allocator pra apagar a memory leak detectada na marra
+    }
+
     rl.InitWindow(1280, 720, "My First Game")       // Cria tela 720p (HD)
     rl.SetWindowPosition(200,200)
     rl.SetWindowState({.WINDOW_RESIZABLE})
@@ -83,13 +113,19 @@ main :: proc() {
 
     current_anim := player_idle
 
-    platforms := []rl.Rectangle {
-        {-20, 20, 96, 16},
-        {90, -10, 96, 16},
-        {100, -50, 96, 16},
+    level: Level
+
+    if level_data, ok := os.read_entire_file("level.json", context.temp_allocator); ok {
+        if json.unmarshal(level_data, &level) != nil {     // tenta alocar o conteudo do json no array level se for compativel
+            append(&level.platforms, rl.Vector2 { -20, 20 }) // cria uma plataforma minima em caso de falha
+        }
+    } else {
+        append(&level.platforms, rl.Vector2 { -20, 20 }) // cria uma plataforma minima em caso de falha
     }
 
     platform_texture := rl.LoadTexture("platform.png")
+
+    editing := false
 
     for !rl.WindowShouldClose() {                   // Roda o loop enquanto não pedir pra fechar a janela
         rl.BeginDrawing()
@@ -142,8 +178,8 @@ main :: proc() {
         player_grounded = false
         player_shinobi = false
         
-        for platform in platforms {
-            if rl.CheckCollisionRecs(player_feet_collider, platform) && player_vel.y > 0 {
+        for platform in level.platforms {
+            if rl.CheckCollisionRecs(player_feet_collider, platform_collider(platform)) && player_vel.y > 0 {
                 player_vel.y = 0
                 player_pos.y = platform.y
                 player_grounded = true
@@ -164,14 +200,47 @@ main :: proc() {
         rl.BeginMode2D(camera)
         draw_animation(current_anim, player_pos, player_flip) // chama function de desenhar passando o quadro do frame, posicao do personagem e se está invertido
 //        rl.DrawRectangleRec(player_feet_collider, {0, 255, 0, 100})   // Descomentar para debugar se necessario
-        for platform in platforms {
-            rl.DrawTextureV(platform_texture, {platform.x, platform.y}, rl.WHITE)
+        for platform in level.platforms {
+            rl.DrawTextureV(platform_texture, platform, rl.WHITE)
         }
+
+        if rl.IsKeyPressed(.F2) {
+            editing = !editing
+        }
+
+        if editing {
+           mp := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)  // mouse position
+
+           rl.DrawTextureV(platform_texture, mp, rl.WHITE)
+
+           if rl.IsMouseButtonPressed(.LEFT) {
+                append(&level.platforms, mp)    // adiciona o vector2 da plataforma nova no dynamic array
+           }
+
+           if rl.IsMouseButtonPressed(.RIGHT) {
+                for p, idx in level.platforms {
+                    if rl.CheckCollisionPointRec(mp, platform_collider(p)) {
+                        unordered_remove(&level.platforms, idx)
+                        break                   // para o loop pq ja achamos a plataform a ser apagada, e mudamos o tamanho do array
+                    }
+                }
+           }
+        }
+
         rl.EndMode2D()
 
         rl.EndDrawing()
+
+        free_all(context.temp_allocator)
     }
 
     rl.CloseWindow()                                    // Fecha a janela
+
+    if level_data, err := json.marshal(level, allocator = context.temp_allocator); err == nil {   // exporta o level pra json se nao houver err
+        os.write_entire_file("level.json", level_data)
+    }
+
+    free_all(context.temp_allocator)
+    delete(level.platforms)                             // apaga o array de plataformas para evitar o memory leak
 }
 
