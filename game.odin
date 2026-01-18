@@ -87,7 +87,7 @@ main :: proc() {
         mem.tracking_allocator_destroy(&track)     // destroy o allocator pra apagar a memory leak detectada na marra
     }
 
-    rl.InitWindow(1280, 720, "My First Game")       // Cria tela 720p (HD)
+    rl.InitWindow(1280, 720, "My Cat Game")       // Cria tela 720p (HD)
     rl.SetWindowPosition(200,200)
     rl.SetWindowState({.WINDOW_RESIZABLE})
     rl.SetTargetFPS(500)
