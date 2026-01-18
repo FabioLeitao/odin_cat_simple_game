@@ -1,5 +1,5 @@
 #+feature dynamic-literals      // necessario para permitir dynamic allocators, com risco de memory leak
-package game
+package cat
 
 import rl "vendor:raylib"
 import "core:mem"               // necessario para previnir memory leak rastreando uso de allocators pra devolver pro OS
